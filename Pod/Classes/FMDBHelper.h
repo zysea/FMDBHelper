@@ -115,6 +115,10 @@
  */
 + (NSInteger)totalRowOfTable:(NSString *)table where:(NSString *)where;
 
++ (double)sumFromTable:(NSString *)table row:(NSString *)name where:(NSString *)where;
+
++ (double)queryResult:(NSString *)where;
+
 /**
  *  batch execute @sqls
  *
@@ -122,4 +126,7 @@
  */
 + (BOOL)executeBatch:(NSArray *)sqls useTransaction:(BOOL)useTransaction;
 
++ (BOOL)isTableOK:(NSString *)tableName;
+
++ (void)addColumn:(NSString *)columnName;
 @end

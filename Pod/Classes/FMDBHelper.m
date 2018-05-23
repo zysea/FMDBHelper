@@ -15,9 +15,7 @@ static NSString *dbName = @"";
 
 + (void)setDataBaseName:(NSString *)name {
     NSAssert(name, @"name cannot be nil!");
-    
     dbName = name;
-    
     if(![[NSFileManager defaultManager] fileExistsAtPath:[self dbPath]]) {
         NSString *bundlePath = [[NSBundle mainBundle] pathForResource:dbName ofType:nil];
         if ([[NSFileManager defaultManager] fileExistsAtPath:bundlePath]) {
@@ -34,9 +32,9 @@ static NSString *dbName = @"";
 
 + (BOOL)dropTable:(NSString *)tableName {
     NSString *sql = [NSString stringWithFormat:@"DROP TABLE IF EXISTS %@", tableName];
-    
     return [self executeUpdate:sql args:nil];
 }
+
 
 #pragma mark - insert
 
@@ -82,7 +80,6 @@ static NSString *dbName = @"";
 
 + (BOOL)update:(NSString *)sql {
     NSAssert(sql, @"sql cannot be nil!");
-    
     return [self executeUpdate:sql args:nil];
 }
 
@@ -194,6 +191,26 @@ static NSString *dbName = @"";
     return [self totalRowOfTable:table where:@"1=1"];
 }
 
++ (double)queryResult:(NSString *)where
+{
+    NSAssert(where, @"table or where cannot be nil!");
+    double sum = 0;
+    FMDatabase *db = [FMDatabase databaseWithPath:[self dbPath]];
+    if ([db open]) {
+        NSString *sql = [NSString stringWithFormat:@"select SUM(results) as sum from result WHERE %@",where];
+
+        FMResultSet *rs = [db executeQuery:sql];
+        if ([rs next]) {
+            sum = [rs doubleForColumn:@"sum"];
+        }
+
+        [db close];
+    }
+
+    db = nil;
+    return sum;
+
+}
 + (NSInteger)totalRowOfTable:(NSString *)table where:(NSString *)where {
     NSAssert(table && where, @"table or where cannot be nil!");
     
@@ -213,6 +230,28 @@ static NSString *dbName = @"";
     db = nil;
     
     return totalRow;
+}
+
+
++ (double)sumFromTable:(NSString *)table row:(NSString *)name where:(NSString *)where
+{
+    NSAssert(table && name && where, @"table or where cannot be nil!");
+    double sum = 0;
+    FMDatabase *db = [FMDatabase databaseWithPath:[self dbPath]];
+    if ([db open]) {
+        NSString *sql = [NSString stringWithFormat:@"select SUM(%@) as sum from %@ WHERE %@",name,table,where];
+
+        FMResultSet *rs = [db executeQuery:sql];
+        if ([rs next]) {
+            sum = [rs doubleForColumn:@"sum"];
+        }
+
+        [db close];
+    }
+
+    db = nil;
+
+    return sum;
 }
 
 #pragma mark - batch
@@ -251,10 +290,9 @@ static NSString *dbName = @"";
     BOOL success = NO;
     
     FMDatabase *db = [FMDatabase databaseWithPath:[self dbPath]];
-    
     if ([db open]) {
         success = [db executeUpdate:sql withArgumentsInArray:args];
-        
+
         [db close];
     }
     
@@ -269,4 +307,43 @@ static NSString *dbName = @"";
     return [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:dbName];
 }
 
++ (BOOL) isTableOK:(NSString *)tableName
+{
+    FMDatabase *db = [FMDatabase databaseWithPath:[self dbPath]];
+    FMResultSet *rs = [db executeQuery:@"select count(*) as 'count' from result where type ='table' and name = ?", tableName];
+    while ([rs next])
+        {
+        // just print out what we've got in a number of formats.
+        NSInteger count = [rs intForColumn:@"count"];
+        NSLog(@"isTableOK %ld", (long)count);
+
+        if (0 == count)
+            {
+            return NO;
+            }
+        else
+            {
+            return YES;
+            }
+        }
+
+    return NO;
+}
+
++ (void)addColumn:(NSString *)columnName
+{
+    FMDatabase *db = [FMDatabase databaseWithPath:[self dbPath]];
+    [db open];
+    if (![db columnExists:columnName inTableWithName:@"result"]) {
+        NSString *alertStr = [NSString stringWithFormat:@"ALTER TABLE result ADD %@ INTEGER",columnName];
+        BOOL worked = [db executeUpdate:alertStr];
+        if(worked){
+            NSLog(@"插入成功");
+            [db close];
+        }else{
+            [db close];
+            NSLog(@"插入失败");
+        }
+    }
+}
 @end
